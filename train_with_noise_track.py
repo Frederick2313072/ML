@@ -9,16 +9,20 @@ from src.monitor import BoostMonitor
 from src.patch import boost_with_monitor
 from src.utils import prepare_data
 
-# 用 patched 版本替换 sklearn 的 _boost
+# 替换 AdaBoostClassifier._boost
 AdaBoostClassifier._boost = boost_with_monitor
 
+
 if __name__ == "__main__":
-    # get original clean data
+    # get data with default amount of noise
     X_train, X_test, y_train, y_test, train_noise_indices, train_clean_indices = (
-        prepare_data(noise_ratio=0)
+        prepare_data()
     )
+
     # monitor
-    monitor = BoostMonitor(train_noise_indices, train_clean_indices)
+    boost_monitor = BoostMonitor(
+        train_noise_indices, train_clean_indices, is_data_noisy=True
+    )
 
     # 训练 AdaBoost
     print("Training AdaBoost...")
@@ -31,7 +35,7 @@ if __name__ == "__main__":
         random_state=42,
     )
 
-    clf._monitor = monitor
+    clf._monitor = boost_monitor
     clf.fit(X_train, y_train)
 
     print("Training finished!")
