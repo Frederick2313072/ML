@@ -1,0 +1,13 @@
+name: machinelearning
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - pandas=2.3.3
+  - matplotlib
+  - seaborn
+  - numpy=2.3.4
+  - scikit-learn=1.7.2
+  - pip:
+      - tqdm
+      - ipykernel
