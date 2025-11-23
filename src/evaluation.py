@@ -736,6 +736,170 @@ class ModelEvaluator:
         print("\n评估报告生成完成！")
 
 
+def visualize_overfitting_process(
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    base_estimator,
+    n_estimators_list=None,
+    learning_rate=0.5,
+    random_state=42,
+    save_path=None,
+):
+    """
+    可视化AdaBoost的过拟合过程
+
+    Parameters
+    ----------
+    X_train, y_train : 训练集
+    X_test, y_test : 测试集
+    base_estimator : 基学习器（如 DecisionTreeClassifier(max_depth=1)）
+    n_estimators_list : 要测试的弱学习器数量列表，默认 [1, 5, 10, 20, 30, 40, 50, 75, 100]
+    learning_rate : 学习率
+    random_state : 随机种子
+    save_path : 保存路径
+    """
+    from sklearn.ensemble import AdaBoostClassifier
+    from tqdm import tqdm
+
+    # 默认测试点
+    if n_estimators_list is None:
+        n_estimators_list = [1, 5, 10, 20, 30, 40, 50, 75, 100]
+
+    print("\n" + "=" * 60)
+    print("AdaBoost 过拟合过程可视化".center(56))
+    print("=" * 60)
+    print(f"测试弱学习器数量: {n_estimators_list}")
+    print(f"学习率: {learning_rate}")
+    print("-" * 60)
+
+    # 记录结果
+    results = {
+        "n_estimators": [],
+        "train_accuracy": [],
+        "test_accuracy": [],
+        "overfitting_degree": [],
+    }
+
+    # 训练多个模型
+    for n_est in tqdm(n_estimators_list, desc="训练进度"):
+        clf = AdaBoostClassifier(
+            estimator=base_estimator,
+            n_estimators=n_est,
+            learning_rate=learning_rate,
+            random_state=random_state,
+        )
+        clf.fit(X_train, y_train)
+
+        # 计算准确率
+        train_acc = clf.score(X_train, y_train)
+        test_acc = clf.score(X_test, y_test)
+
+        # 记录
+        results["n_estimators"].append(n_est)
+        results["train_accuracy"].append(train_acc)
+        results["test_accuracy"].append(test_acc)
+        results["overfitting_degree"].append(train_acc - test_acc)
+
+    print("训练完成！")
+
+    # 创建可视化
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+    # 子图1: 学习曲线
+    ax1 = axes[0]
+    n_est = results["n_estimators"]
+    train_acc = results["train_accuracy"]
+    test_acc = results["test_accuracy"]
+
+    ax1.plot(n_est, train_acc, "b-o", linewidth=2, markersize=8, label="训练集准确率")
+    ax1.plot(n_est, test_acc, "r-s", linewidth=2, markersize=8, label="测试集准确率")
+    ax1.fill_between(n_est, train_acc, test_acc, alpha=0.3, color="orange", label="过拟合区域")
+
+    # 标记最佳点
+    best_idx = np.argmax(test_acc)
+    best_n = n_est[best_idx]
+    best_test_acc = test_acc[best_idx]
+    ax1.plot(best_n, best_test_acc, "g*", markersize=20, label=f"最佳点 (n={best_n})")
+    ax1.axvline(x=best_n, color="green", linestyle="--", alpha=0.5)
+
+    ax1.set_xlabel("弱学习器数量", fontsize=14)
+    ax1.set_ylabel("准确率", fontsize=14)
+    ax1.set_title("学习曲线：准确率 vs 弱学习器数量", fontsize=16, pad=15)
+    ax1.legend(fontsize=12, loc="lower right")
+    ax1.grid(True, alpha=0.3)
+    ax1.set_ylim([min(test_acc) - 0.05, 1.0])
+
+    # 子图2: 过拟合程度
+    ax2 = axes[1]
+    overfit = results["overfitting_degree"]
+
+    ax2.plot(n_est, overfit, "purple", linewidth=3, marker="o", markersize=8)
+    ax2.fill_between(
+        n_est, 0, overfit, where=np.array(overfit) > 0, alpha=0.3, color="red", label="过拟合区域"
+    )
+    ax2.axhline(y=0, color="black", linestyle="--", linewidth=1, alpha=0.5)
+
+    # 标记最小过拟合点
+    min_overfit_idx = np.argmin(np.abs(overfit))
+    min_overfit_n = n_est[min_overfit_idx]
+    min_overfit_val = overfit[min_overfit_idx]
+    ax2.plot(
+        min_overfit_n,
+        min_overfit_val,
+        "g*",
+        markersize=20,
+        label=f"最小过拟合 (n={min_overfit_n})",
+    )
+    ax2.axvline(x=min_overfit_n, color="green", linestyle="--", alpha=0.5)
+
+    ax2.set_xlabel("弱学习器数量", fontsize=14)
+    ax2.set_ylabel("过拟合程度 (训练准确率 - 测试准确率)", fontsize=14)
+    ax2.set_title("过拟合程度随弱学习器数量的变化", fontsize=16, pad=15)
+    ax2.legend(fontsize=12)
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        print(f"过拟合可视化已保存到: {save_path}")
+    else:
+        plt.show()
+
+    plt.close()
+
+    # 打印总结
+    print("\n" + "=" * 60)
+    print("过拟合分析总结".center(56))
+    print("=" * 60)
+
+    print(f"\n最佳模型:")
+    print(f"  弱学习器数量: {best_n}")
+    print(f"  测试集准确率: {best_test_acc:.4f} ({best_test_acc * 100:.2f}%)")
+    print(f"  训练集准确率: {train_acc[best_idx]:.4f} ({train_acc[best_idx] * 100:.2f}%)")
+    print(f"  过拟合程度: {overfit[best_idx]:.4f} ({overfit[best_idx] * 100:.2f}%)")
+
+    print(f"\n最小过拟合模型:")
+    print(f"  弱学习器数量: {min_overfit_n}")
+    print(f"  过拟合程度: {min_overfit_val:.4f} ({min_overfit_val * 100:.2f}%)")
+    print(f"  测试集准确率: {test_acc[min_overfit_idx]:.4f}")
+
+    print(f"\n趋势分析:")
+    print(f"  初始 (n={n_est[0]}): 测试准确率 = {test_acc[0]:.4f}, 过拟合 = {overfit[0]:.4f}")
+    print(f"  最终 (n={n_est[-1]}): 测试准确率 = {test_acc[-1]:.4f}, 过拟合 = {overfit[-1]:.4f}")
+
+    if test_acc[-1] < best_test_acc:
+        print(f"  ⚠️ 警告: 测试准确率在 n={best_n} 后开始下降，建议使用早停")
+    else:
+        print(f"  ✓ 测试准确率持续提升，可以考虑增加弱学习器数量")
+
+    print("=" * 60)
+
+    return results
+
+
 def quick_evaluate(
     clf,
     X_train,
