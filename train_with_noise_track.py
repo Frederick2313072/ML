@@ -8,40 +8,51 @@ from sklearn.model_selection import train_test_split
 from src.monitor import BoostMonitor
 from src.patch import boost_with_monitor
 from src.utils import prepare_data
+from src.evaluation import quick_evaluate
 
 # 替换 AdaBoostClassifier._boost
 AdaBoostClassifier._boost = boost_with_monitor
 
 
 if __name__ == "__main__":
-    # get data with default amount of noise
+    # 获取含噪声的数据（默认噪声比例5%）
     X_train, X_test, y_train, y_test, train_noise_indices, train_clean_indices = (
         prepare_data()
     )
 
-    # monitor
+    # 创建监控器（启用噪声追踪）
     boost_monitor = BoostMonitor(
         train_noise_indices, train_clean_indices, is_data_noisy=True
     )
 
     # 训练 AdaBoost
-    print("Training AdaBoost...")
-    base = DecisionTreeClassifier(max_depth=1)
+    print("训练 AdaBoost 模型...")
+    base = DecisionTreeClassifier(max_depth=1)  # 使用决策树桩作为基学习器
 
     clf = AdaBoostClassifier(
-        estimator=base,
-        n_estimators=50,
-        learning_rate=0.5,
-        random_state=42,
+        estimator=base,           # 基学习器
+        n_estimators=50,          # 弱学习器数量
+        learning_rate=0.5,        # 学习率
+        random_state=42,          # 随机种子
     )
 
+    # 绑定监控器到分类器
     clf._monitor = boost_monitor
+    
+    # 开始训练
     clf.fit(X_train, y_train)
 
-    print("Training finished!")
+    print("训练完成！\n")
 
-    y_pred_train = clf.predict(X_train)
-    y_pred_test = clf.predict(X_test)
-
-    print(f"acc on training data：{accuracy_score(y_train, y_pred_train):.4f}")
-    print(f"acc on testing data：{accuracy_score(y_test, y_pred_test):.4f}")
+    # ========== 使用新的评估系统 ==========
+    print("开始生成详细评估报告...")
+    evaluator = quick_evaluate(
+        clf,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        monitor=boost_monitor,
+        noise_indices=train_noise_indices,
+        clean_indices=train_clean_indices,
+    )
