@@ -1,13 +1,18 @@
+import os
 import warnings
+import pandas as pd
 
 
 class BoostMonitor:
-    def __init__(self, noise_indices, clean_indices, n_estimators, is_data_noisy=False):
-        self.n_estimators = n_estimators
+    def __init__(
+        self, noise_indices, clean_indices, is_data_noisy=False, checkpoint_interval=50
+    ):
+        # data
         self.noise_indices = noise_indices
         self.clean_indices = clean_indices
         self.is_data_noisy = is_data_noisy
 
+        # model history
         self.sample_weights_history = []
         self.noisy_weight_history = []
         self.clean_weight_history = []
@@ -15,12 +20,18 @@ class BoostMonitor:
         self.error_history = []
         self.alpha_history = []
 
+        # validation history
+        self.val_acc_history = []
+        self.val_f1_history = []
+        # checkpoint
+        self.checkpoint_interval = checkpoint_interval
+
     def record_before_boost(self, sample_weight):
         """记录 boost 开始前的信息"""
         self.sample_weights_history.append(sample_weight.copy())
         if self.is_data_noisy:
-            self.noisy_weight_history.append(sample_weight[self.noise_indices].mean())
-            self.clean_weight_history.append(sample_weight[self.clean_indices].mean())
+            self.noisy_weight_history.append(sample_weight[self.noise_indices].sum())
+            self.clean_weight_history.append(sample_weight[self.clean_indices].sum())
 
     def record_after_boost(
         self,
@@ -74,21 +85,22 @@ class BoostMonitor:
 
         print(msg)
 
-    def dump(self, filename="monitor_log.csv"):
-        """
-        将监控数据保存为 CSV 文件
-        """
-        # 训练轮数检查（使用 warning 而非 raise）
-        if len(self.error_history) != self.n_estimators:
-            warnings.warn(
-                f"训练似乎未完成！当前记录轮次 = {len(self.error_history)}, "
-                f"期望轮次 = {self.n_estimators}. "
-                "将继续导出当前已有的数据。",
-                RuntimeWarning,
-            )
-        import pandas as pd
+    def record_validation(self, iboost, acc, f1):
+        self.val_acc_history.append(acc)
+        self.val_f1_history.append(f1)
 
-        rounds = len(self.error_history)  # 以 error_history 为基准对齐
+        print(f"[VAL] round={iboost:03d} | acc={acc:.4f} | f1={f1:.4f}")
+
+    def auto_checkpoint(self, iboost, dir="results", prefix="monitor_checkpoint"):
+        """
+        每隔 interval 轮自动保存监控数据，以防实验中断造成数据丢失。
+        """
+
+        # 只有在达到间隔时才保存
+        if (iboost + 1) % self.checkpoint_interval != 0:
+            return
+
+        rounds = len(self.error_history)
 
         data = {
             "round": list(range(1, rounds + 1)),
@@ -96,23 +108,75 @@ class BoostMonitor:
             "alpha": self.alpha_history,
         }
 
-        # 若存在普通错误率
+        # 普通错误率
         if len(self.error_without_weight_history) == rounds:
             data["unweighted_error"] = self.error_without_weight_history
         else:
-            # 保持列齐整，用 NaN 填充
             data["unweighted_error"] = [None] * rounds
 
-        # 若是 noisy 数据，则添加 noisy & clean 权重
+        # noisy / clean 权重（已经是 before-boost）
         if self.is_data_noisy:
-            # noisy_weight_history 是 BEFORE boost 记录的，会多 1 个元素
-            # → 对齐后从 index=0 截取 rounds 个
-            data["noisy_weight_mean"] = self.noisy_weight_history[:rounds]
-            data["clean_weight_mean"] = self.clean_weight_history[:rounds]
+            data["noisy_weight"] = self.noisy_weight_history[:rounds]
+            data["clean_weight"] = self.clean_weight_history[:rounds]
         else:
-            data["noisy_weight_mean"] = [None] * rounds
-            data["clean_weight_mean"] = [None] * rounds
+            data["noisy_weight"] = [None] * rounds
+            data["clean_weight"] = [None] * rounds
 
+        df = pd.DataFrame(data)
+
+        # 自动生成 checkpoint 文件名
+        filename = f"{prefix}_round_{iboost + 1:04d}.csv"
+        path = os.path.join(dir, filename)
+        df.to_csv(path, index=False)
+
+        print(f"[CHECKPOINT] Saved '{path}' (round={iboost + 1}, rows={len(df)})")
+
+    def dump(self, filename="monitor_log.csv"):
+        """
+        将所有监控数据保存为 CSV 文件（最终版）
+        自动对齐所有历史记录，缺失部分会用 None 填充。
+        """
+
+        # 使用 error_history 作为主轴（每轮 after_boost 必记一条）
+        rounds = len(self.error_history)
+
+        if rounds == 0:
+            warnings.warn("没有任何训练记录，dump 取消。")
+            return
+
+        # 构建主数据结构
+        data = {
+            "round": list(range(1, rounds + 1)),
+            "weighted_error": self.error_history,
+            "alpha": self.alpha_history,
+        }
+
+        # 普通错误率（unweighted）
+        if len(self.error_without_weight_history) == rounds:
+            data["unweighted_error"] = self.error_without_weight_history
+        else:
+            data["unweighted_error"] = [None] * rounds
+
+        #  noisy / clean 权重均值
+        if self.is_data_noisy:
+            data["noisy_weight"] = self.noisy_weight_history[:rounds]
+            data["clean_weight"] = self.clean_weight_history[:rounds]
+        else:
+            data["noisy_weight"] = [None] * rounds
+            data["clean_weight"] = [None] * rounds
+
+        # validation 指标
+        if len(self.val_acc_history) == rounds:
+            data["val_acc"] = self.val_acc_history
+        else:
+            data["val_acc"] = [None] * rounds
+
+        if len(self.val_f1_history) == rounds:
+            data["val_f1"] = self.val_f1_history
+        else:
+            data["val_f1"] = [None] * rounds
+
+        # 输出 CSV
         df = pd.DataFrame(data)
         df.to_csv(filename, index=False)
 
