@@ -5,6 +5,8 @@ import numpy as np
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
+from src.monitor import BoostMonitor
+from src.patch import AdaBoostClfWithMonitor
 
 
 def prepare_data(noise_ratio=0.05, test_size=0.2, random_state=42):
@@ -110,7 +112,7 @@ def build_experiment(config_path):
     os.makedirs(ckpt_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
 
-    print(f"📁 实验目录已创建: {exp_dir}")
+    print(f"实验目录已创建: {exp_dir}")
 
     # === 1. 数据准备 ===
     data_cfg = config["data"]
@@ -129,14 +131,13 @@ def build_experiment(config_path):
 
     # === 2. 构造 Monitor（自动拼 checkpoint 前缀） ===
     monitor_cfg = config["monitor"]
-    checkpoint_prefix = os.path.join(ckpt_dir, "round")
 
     monitor = BoostMonitor(
         noise_indices=noise_idx,
         clean_indices=clean_idx,
         is_data_noisy=monitor_cfg["is_data_noisy"],
         checkpoint_interval=monitor_cfg["checkpoint_interval"],
-        checkpoint_prefix=checkpoint_prefix,
+        checkpoint_prefix=ckpt_dir,
     )
 
     # === 3. 构造模型 ===

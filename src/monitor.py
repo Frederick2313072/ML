@@ -131,11 +131,10 @@ class BoostMonitor:
         df = pd.DataFrame(data)
 
         # 自动生成 checkpoint 文件名
-        filename = f"{self.checkpoint_prefix}/round_{iboost + 1:04d}.csv"
-        path = os.path.join("checkpoints", filename)
-        df.to_csv(path, index=False)
+        ckpt_path = f"{self.checkpoint_prefix}/round_{iboost + 1:04d}.csv"
+        df.to_csv(ckpt_path, index=False)
 
-        print(f"[CHECKPOINT] Saved '{path}' (round={iboost + 1}, rows={len(df)})")
+        print(f"[CHECKPOINT] Saved '{ckpt_path}' (round={iboost + 1}, rows={len(df)})")
 
     def dump(self, filename="monitor_log.csv"):
         """
