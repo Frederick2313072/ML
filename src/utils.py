@@ -162,4 +162,5 @@ def build_experiment(config_path):
         monitor,
         (X_train, X_test, y_train, y_test, noise_idx, clean_idx),
         result_csv,
+        result_dir,
     )
