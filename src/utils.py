@@ -1,4 +1,8 @@
+import json
+import os
+
 import numpy as np
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
 
@@ -87,3 +91,74 @@ def prepare_data(noise_ratio=0.05, test_size=0.2, random_state=42):
     print(f"Training set noise samples = {len(train_noise_indices)}")
 
     return (X_train, X_test, y_train, y_test, train_noise_indices, train_clean_indices)
+
+
+def load_config(config_path):
+    with open(config_path, "r") as f:
+        return json.load(f)
+
+
+def build_experiment(config_path):
+    config = load_config(config_path)
+
+    exp_name = config["experiment"]["name"]
+    exp_dir = os.path.join("experiments", exp_name)
+
+    # === 自动创建目录结构 ===
+    ckpt_dir = os.path.join(exp_dir, "checkpoints")
+    result_dir = os.path.join(exp_dir, "results")
+    os.makedirs(ckpt_dir, exist_ok=True)
+    os.makedirs(result_dir, exist_ok=True)
+
+    print(f"📁 实验目录已创建: {exp_dir}")
+
+    # === 1. 数据准备 ===
+    data_cfg = config["data"]
+    (
+        X_train,
+        X_test,
+        y_train,
+        y_test,
+        noise_idx,
+        clean_idx,
+    ) = prepare_data(
+        noise_ratio=data_cfg["noise_ratio"],
+        test_size=data_cfg["test_size"],
+        random_state=data_cfg["random_state"],
+    )
+
+    # === 2. 构造 Monitor（自动拼 checkpoint 前缀） ===
+    monitor_cfg = config["monitor"]
+    checkpoint_prefix = os.path.join(ckpt_dir, "round")
+
+    monitor = BoostMonitor(
+        noise_indices=noise_idx,
+        clean_indices=clean_idx,
+        is_data_noisy=monitor_cfg["is_data_noisy"],
+        checkpoint_interval=monitor_cfg["checkpoint_interval"],
+        checkpoint_prefix=checkpoint_prefix,
+    )
+
+    # === 3. 构造模型 ===
+    model_cfg = config["model"]
+    base = DecisionTreeClassifier(**model_cfg["estimator"])
+
+    clf = AdaBoostClfWithMonitor(
+        _monitor=monitor,
+        X_val=X_test,
+        y_val=y_test,
+        estimator=base,
+        n_estimators=model_cfg["n_estimators"],
+        learning_rate=model_cfg["learning_rate"],
+        random_state=model_cfg["random_state"],
+    )
+
+    # 返回路径供保存
+    result_csv = os.path.join(result_dir, "final_results.csv")
+
+    return (
+        clf,
+        monitor,
+        (X_train, X_test, y_train, y_test, noise_idx, clean_idx),
+        result_csv,
+    )

@@ -5,7 +5,12 @@ import pandas as pd
 
 class BoostMonitor:
     def __init__(
-        self, noise_indices, clean_indices, is_data_noisy=False, checkpoint_interval=50
+        self,
+        noise_indices,
+        clean_indices,
+        is_data_noisy=False,
+        checkpoint_interval=50,
+        checkpoint_prefix="monitor_checkpoint",
     ):
         # data
         self.noise_indices = noise_indices
@@ -25,6 +30,7 @@ class BoostMonitor:
         self.val_f1_history = []
         # checkpoint
         self.checkpoint_interval = checkpoint_interval
+        self.checkpoint_prefix = checkpoint_prefix
 
     def record_before_boost(self, sample_weight):
         """记录 boost 开始前的信息"""
@@ -91,7 +97,7 @@ class BoostMonitor:
 
         print(f"[VAL] round={iboost:03d} | acc={acc:.4f} | f1={f1:.4f}")
 
-    def auto_checkpoint(self, iboost, dir="results", prefix="monitor_checkpoint"):
+    def auto_checkpoint(self, iboost):
         """
         每隔 interval 轮自动保存监控数据，以防实验中断造成数据丢失。
         """
@@ -125,8 +131,8 @@ class BoostMonitor:
         df = pd.DataFrame(data)
 
         # 自动生成 checkpoint 文件名
-        filename = f"{prefix}_round_{iboost + 1:04d}.csv"
-        path = os.path.join(dir, filename)
+        filename = f"{self.checkpoint_prefix}/round_{iboost + 1:04d}.csv"
+        path = os.path.join("checkpoints", filename)
         df.to_csv(path, index=False)
 
         print(f"[CHECKPOINT] Saved '{path}' (round={iboost + 1}, rows={len(df)})")
