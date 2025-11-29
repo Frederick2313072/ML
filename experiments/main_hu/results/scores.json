@@ -1,0 +1,14 @@
+{
+    "mnist": {
+        "accuracy": 0.5051428571428571,
+        "precision_macro": 0.4921162445828151,
+        "recall_macro": 0.4961449470653806,
+        "f1_macro": 0.4904122802580263
+    },
+    "course_data": {
+        "accuracy": 0.2,
+        "precision_macro": 0.15,
+        "recall_macro": 0.2,
+        "f1_macro": 0.16666666666666666
+    }
+}
