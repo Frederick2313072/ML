@@ -1,0 +1,26 @@
+{
+    "experiment": {
+        "name": "overfit_D1_depth3_fullfeat_800"
+    },
+    "data": {
+        "noise_ratio": 0.15,
+        "test_size": 0.2,
+        "random_state": 42,
+        "use_feature": "original"
+    },
+    "monitor": {
+        "use_monitor": true,
+        "is_data_noisy": true,
+        "checkpoint_interval": 50
+    },
+    "model": {
+        "estimator": {
+            "max_depth": 3,
+            "criterion": "entropy",
+            "max_features": 1.0
+        },
+        "n_estimators": 800,
+        "learning_rate": 0.8,
+        "random_state": 42
+    }
+}
