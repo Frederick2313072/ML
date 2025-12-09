@@ -3,12 +3,22 @@
         "name": "overfit_depth4_lr1_multi_noise20"
     },
     "data": {
-      "noise_config": {
-          "label_flip": {"ratio": 0.2},
-          "gaussian": {"std": 0.05},
-          "salt_pepper": {"amount": 0.02},
-          "rotate": {"angle_range": 10},
-          "blur": {"kernel_size": 3}
+        "noise_config": {
+            "label_flip": {
+                "ratio": 0.2
+            },
+            "gaussian": {
+                "std": 0.05
+            },
+            "salt_pepper": {
+                "amount": 0.02
+            },
+            "rotate": {
+                "angle_range": 10
+            },
+            "blur": {
+                "kernel_size": 3
+            }
         },
         "test_size": 0.2,
         "random_state": 42,
