@@ -38,7 +38,6 @@ class ExperimentPipeline:
             (clf, monitor, split, layout, artifacts, eval_outputs)
         """
         from adalab.workflow import train_and_save
-        from adalab.evaluation import evaluate
 
         config_path = Path(config_path)
         config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -48,27 +47,17 @@ class ExperimentPipeline:
         clf, monitor, split, layout, artifacts = train_and_save(str(config_path))
 
         # evaluate
-        X_course, y_course = split.prep.prepare_course_data(course_folder)
-
-        y_pred_mnist = clf.predict(split.X_test)
-        y_pred_course = clf.predict(X_course)
-
-        print("\033[36m[Pipeline] \n=== Scores on test data of MNIST ===\033[0m")
-        scores_on_mnist = evaluate(y_true=split.y_test, y_pred=y_pred_mnist)
-
-        print("\033[36m[Pipeline] \n=== Scores on test data of course data ===\033[0m")
-        scores_on_course = evaluate(y_true=y_course, y_pred=y_pred_course)
-
-        scores = {"mnist": scores_on_mnist, "course_data": scores_on_course}
-
-        score_path = Path(layout.result_dir) / "scores.json"
-        score_path.write_text(
-            json.dumps(scores, indent=4, ensure_ascii=False), encoding="utf-8"
+        scores = self._run_eval(
+            clf=clf,
+            split=split,
+            course_folder=course_folder,
+            result_dir=Path(layout.result_dir),
         )
-        print(f"\033[36m[Pipeline] \nScores saved to: {score_path}\033[0m")
 
-        eval_outputs = EvalOutputs(scores=scores, score_path=score_path)
-
+        eval_outputs = EvalOutputs(
+            scores=scores,
+            score_path=Path(layout.result_dir) / "scores.json",
+        )
         # visualize
         if do_viz:
             self._visualize_after_training(
@@ -215,12 +204,6 @@ class ExperimentPipeline:
         # fallback
         return dt.datetime.fromtimestamp(p.stat().st_mtime)
 
-    # @staticmethod
-    # def _format_mtime(p: Path) -> str:
-    #     return dt.datetime.fromtimestamp(p.stat().st_mtime).strftime(
-    #         "%Y-%m-%d %H:%M:%S"
-    #     )
-
     def _find_experiment_dir(self, exp_name: str, base_dir: Path) -> Path:
         candidates: List[Path] = []
 
@@ -261,3 +244,62 @@ class ExperimentPipeline:
                 if 0 <= idx < len(candidates):
                     return candidates[idx]
             print("\033[36m[Pipeline] Invalid input, try again.\033[0m")
+
+    def _run_eval(
+        self,
+        *,
+        clf,
+        split,
+        course_folder: str,
+        result_dir: Path,
+    ) -> dict:
+        """
+        Run evaluation on:
+        - MNIST test split
+        - course data
+
+        This method is intentionally lightweight:
+        - only requires a classifier with predict()
+        - minimal dependency on training artifacts
+
+        Returns:
+            scores (dict): structured evaluation results
+        """
+
+        from adalab.evaluation import evaluate
+
+        # ---- prepare data ----
+        X_course, y_course = split.prep.prepare_course_data(course_folder)
+
+        # ---- predictions ----
+        y_pred_mnist = clf.predict(split.X_test)
+        y_pred_course = clf.predict(X_course)
+
+        # ---- evaluation ----
+        print("\033[36m[Pipeline] \n=== Scores on test data of MNIST ===\033[0m")
+        scores_on_mnist = evaluate(
+            y_true=split.y_test,
+            y_pred=y_pred_mnist,
+        )
+
+        print("\033[36m[Pipeline] \n=== Scores on test data of course data ===\033[0m")
+        scores_on_course = evaluate(
+            y_true=y_course,
+            y_pred=y_pred_course,
+        )
+
+        scores = {
+            "mnist": scores_on_mnist,
+            "course_data": scores_on_course,
+        }
+
+        # ---- save ----
+        score_path = result_dir / "scores.json"
+        score_path.write_text(
+            json.dumps(scores, indent=4, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        print(f"\033[36m[Pipeline] \nScores saved to: {score_path}\033[0m")
+
+        return scores
