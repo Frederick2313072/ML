@@ -315,7 +315,6 @@ class DataPreparationForTraining:
         pert = self.perturber
 
         noise_items = [(k, v) for k, v in self.noise_config.items() if k != "ratio"]
-        print(noise_items)
         ratio = float(self.noise_config.get("ratio", 0.0))
         # 若无 noise_config，直接返回
         if len(self.noise_config) == 0 or ratio == 0 or len(noise_items) == 0:
