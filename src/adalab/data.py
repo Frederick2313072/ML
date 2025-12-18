@@ -148,9 +148,9 @@ class FeatureExtractor:
         for img in X_reshaped:
             f = hog(
                 img,
-                orientations=hog_conf["hog_orientations"],
-                pixels_per_cell=hog_conf["hog_pixels_per_cell"],
-                cells_per_block=hog_conf["hog_cells_per_block"],
+                orientations=hog_conf["orientations"],
+                pixels_per_cell=hog_conf["pixels_per_cell"],
+                cells_per_block=hog_conf["cells_per_block"],
                 block_norm="L2-Hys",
             )
             feats.append(f)

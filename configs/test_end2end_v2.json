@@ -5,10 +5,12 @@
   "data": {
     "test_size": 0.2,
     "random_state": 42,
-    "use_feature": "hu",
+    "use_feature": "hog",
     "feature_config": {
-      "hu_params": {
-        "log_scale": true
+      "hog_params": {
+          "orientations": 9,
+          "pixels_per_cell": [4, 4],
+          "cells_per_block": [4, 4]
       }
     },
     "training_noise_config": {
@@ -63,12 +65,12 @@
   },
   "model": {
     "estimator": {
-      "max_depth": 2,
+      "max_depth": 1,
       "criterion": "entropy",
       "max_features": 0.25,
       "random_state": 42
     },
-    "n_estimators": 100,
+    "n_estimators": 20,
     "learning_rate": 0.5,
     "random_state": 42
   }
