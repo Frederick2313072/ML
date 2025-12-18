@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import cv2
+from scipy.ndimage import shift
 from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
 from skimage.feature import hog
@@ -42,7 +43,7 @@ class DataSplitForTraining:
         y_test (np.ndarray): 测试集标签向量。
         noise_idx (np.ndarray): 训练集中被标记为噪声样本的索引。
         clean_idx (np.ndarray): 训练集中被标记为干净样本的索引。
-        # prep (DataPreparation): 生成该数据划分的 DataPreparation 实例。
+        X_test_784(np.ndarray): MNIST测试集特征提取前的784维向量。
     """
 
     X_train: NDArray
@@ -51,6 +52,7 @@ class DataSplitForTraining:
     y_test: NDArray
     noise_idx: NDArray
     clean_idx: NDArray
+    X_test_784: NDArray
 
 
 @dataclass
@@ -290,6 +292,9 @@ class DataPreparationForTraining:
         self.test_idx = np.asarray(test_idx, dtype=np.int64)
 
         self.X_train_raw = np.asarray(X_train, dtype=np.float32)
+        self.X_test_raw = np.asarray(X_test, dtype=np.float32).copy()
+        # prepare函数中要返回原始MNIST测试集，赋值给DataSplitForTraining.X_test_784,
+        # 将来传给prep_test_data_from_config来构造shift测试集
         self.X_test = np.asarray(X_test, dtype=np.float32)
         self.y_train_raw = np.asarray(y_train, dtype=np.int64)
         self.y_test = np.asarray(y_test, dtype=np.int64)
@@ -388,7 +393,15 @@ class DataPreparationForTraining:
 
     def prepare(
         self,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+    ]:
         """执行训练阶段完整的数据准备流程。
 
         该方法是训练前数据准备阶段的统一入口，
@@ -416,6 +429,7 @@ class DataPreparationForTraining:
             self.y_test,
             self.train_noise_indices,
             self.train_clean_indices,
+            self.X_test_raw,
         )
 
 
@@ -436,7 +450,7 @@ class DataPreparationForTesting:
 
     def apply_shift(self, X: NDArray, config: Dict) -> NDArray:
         X_shift = X.copy()
-        for shift_type, params in config:
+        for shift_type, params in config.items():
             if shift_type == "contrast":
                 fr = params.get("factor_range", (0.5, 1.5))
                 X_shift = self.pert.adjust_contrast(X_shift, factor_range=fr)
@@ -452,8 +466,12 @@ class DataPreparationForTesting:
 
     def get_shift_x_test(self) -> Dict[str, NDArray]:
         shift_tests = {}
-        for shift_name, method in self.test_shift_config:
-            shift_tests[shift_name] = self.apply_shift(self.train_split.X_test, method)
+        feat_extractor = FeatureExtractor(self.use_feature, self.feature_config)
+        # X = feat_extractor.apply_feature(X_raw)
+        for shift_name, method in self.test_shift_config.items():
+            X_test_shift = self.apply_shift(self.train_split.X_test_784, method)
+            shift_tests[shift_name] = feat_extractor.apply_feature(X_test_shift)
+            print(f"[Data] Created shift test data with config: {shift_name}")
         return shift_tests
 
     def prepare_course_data(self, folder):

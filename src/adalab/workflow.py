@@ -241,8 +241,10 @@ def prep_training_data_from_config(config) -> DataSplitForTraining:
         random_state=data_cfg["random_state"],
         feature_config=feature_config,
     )
-    X_train, X_test, y_train, y_test, noise_idx, clean_idx = prep.prepare()
-    return DataSplitForTraining(X_train, X_test, y_train, y_test, noise_idx, clean_idx)
+    X_train, X_test, y_train, y_test, noise_idx, clean_idx, X_test_784 = prep.prepare()
+    return DataSplitForTraining(
+        X_train, X_test, y_train, y_test, noise_idx, clean_idx, X_test_784
+    )
 
 
 def prep_testing_data_from_config(config, train_split, folder) -> DataSplitForTesting:

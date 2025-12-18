@@ -212,7 +212,7 @@ class ExperimentPipeline:
         # csv_path = result_dir / "final_results.csv"
 
         if monitor_path.exists():
-            return (load_from_joblib(str(monitor_path)),)
+            return load_from_joblib(str(monitor_path))
 
         raise FileNotFoundError(f"No monitor.joblib : {result_dir}")
 
@@ -293,13 +293,13 @@ class ExperimentPipeline:
         self,
         *,
         clf,
-        train_split,
+        train_split: DataSplitForTraining,
         test_split: DataSplitForTesting,
         course_folder: str,
         result_dir: Path,
     ) -> dict:
         # ---- prepare data ----
-        X_course, y_course = train_split.prep.prepare_course_data(course_folder)
+        X_course, y_course = test_split.X_course, test_split.y_course
 
         # ---- predictions ----
         y_pred_mnist_ori = clf.predict(test_split.X_mnist_ori)
