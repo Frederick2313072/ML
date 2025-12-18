@@ -17,7 +17,7 @@ AdaLab 的所有实验均通过 **JSON 配置文件**进行驱动。
   "monitor": { ... },
   "model": { ... }
 }
-````
+```
 
 各模块职责如下：
 
@@ -163,6 +163,34 @@ robust_flip_vs_gaussian
 
 ---
 
+### 3.6 测试集风格构造（test_shift_config）
+在测试集中引入特定扰动以评估模型的泛化能力。test_shift_config下可以引入任意数量的键值对，每个键值对对应一种扰动方式及其参数，键名即为该扰动测试集在实验中的名称。
+```json
+"test_shift_config": {
+  "contrast": {
+    "factor_range": [0.7, 1.3]
+  },
+  "rotate": {
+    "angle_range": 10
+  },
+  "brightness": {
+    "shift_range": 0.2
+  },
+  "multiple_disturbances_test": {
+    "contrast": {
+      "factor_range": [0.5, 1.5]
+    },
+    "rotate": {
+      "angle_range": 15
+    },
+    "brightness": {
+      "shift_range": 0.3
+    }
+  }
+}
+```
+---
+
 ## 4. monitor：训练监控配置
 
 ```json
@@ -236,5 +264,3 @@ robust_flip_vs_gaussian
 1. 固定 `random_state` 为 42。
 2. 稍微修改参数时可不修改实验名称，AdaLab 会自动按时间戳创建新的实验目录。
 3. 大量修改时最好使用新的实验名称和配置文件。
-
-```
