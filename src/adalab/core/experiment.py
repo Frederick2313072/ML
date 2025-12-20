@@ -71,7 +71,9 @@ class ExperimentPipeline:
 
         print("\033[36m[Pipeline] Starting training...\n\033[0m")
 
-        clf, monitor, train_split, layout, artifacts = train_and_save(str(config_path))
+        clf, monitor, train_split, layout, artifacts = train_and_save(
+            str(config_path), self.experiments_dir
+        )
         test_split = prep_testing_data_from_config(config, train_split, course_folder)
         # evaluate
         scores = self._run_eval(

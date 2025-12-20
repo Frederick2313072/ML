@@ -21,9 +21,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+from pandas.core import base
 from skimage import feature
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
+
+from adalab.core import experiment
 
 from .monitor import BoostMonitor
 from .data import (
@@ -273,7 +276,7 @@ def prep_testing_data_from_config(config, train_split, folder) -> DataSplitForTe
     return prep.prepare(folder)
 
 
-def build_experiment(config_path):
+def build_experiment(config_path, base_exp_dir: str = "experiments"):
     """构建一次完整的实验对象。
 
     包括：
@@ -295,7 +298,11 @@ def build_experiment(config_path):
     config = load_config(config_path)
 
     exp_name = config["experiment"]["name"]
-    base_dir = config["experiment"].get("base_dir", "experiments")
+    base_dir = (
+        base_exp_dir
+        if base_exp_dir != "experiments"
+        else config["experiment"].get("base_dir", "experiments")
+    )
     layout = ExperimentPaths.create(exp_name, base_dir=base_dir)
     with open(layout.config_path, "w") as fw:
         json.dump(config, fw, indent=4)
@@ -350,7 +357,7 @@ def build_experiment(config_path):
 
 
 def train_and_save(
-    config_path: str,
+    config_path: str, base_exp_dir: str = "experiments"
 ) -> tuple[
     Union[AdaBoostClassifier, AdaBoostClfWithMonitor],
     Optional[BoostMonitor],
@@ -369,7 +376,7 @@ def train_and_save(
 
     Args:
         config_path (str): 实验配置文件路径。
-
+        base_exp_dir (str): 接受来自命令行的epxeriments-dir参数，配制实验根目录,非experiments会覆盖配置文件参数.
     Returns:
         tuple:
             - clf: 训练完成的分类模型。
@@ -379,7 +386,7 @@ def train_and_save(
             - result_paths (ArtifactPaths): 所有实验产物的路径描述。
     """
     # 构建实验
-    (clf, monitor, split, layout) = build_experiment(config_path)
+    (clf, monitor, split, layout) = build_experiment(config_path, base_exp_dir)
     has_monitor = True if monitor else False
     result_paths = ArtifactPaths.from_layout(layout, has_monitor)
 
