@@ -81,44 +81,6 @@ def evaluate(
     }
 
 
-# def evaluate(y_true, y_pred, title="Evaluation"):
-#     """对完整模型的预测结果进行评估。
-#
-#     该函数用于在模型训练完成后，
-#     对最终集成模型在指定数据集上的预测结果进行一次性评估，
-#     并输出常用分类指标。
-#
-#     Args:
-#         y_true (array-like): 真实标签。
-#         y_pred (array-like): 模型预测标签。
-#         title (str, optional): 评估结果的标题，用于日志输出。
-#
-#     Returns:
-#         dict: 包含以下键值的评估结果字典：
-#             - accuracy: 准确率
-#             - precision_macro: macro 平均精确率
-#             - recall_macro: macro 平均召回率
-#             - f1_macro: macro 平均 F1 分数
-#     """
-#     print(f"\n=== {title} ===")
-#
-#     acc = accuracy_score(y_true, y_pred)
-#     prec_macro = precision_score(y_true, y_pred, average="macro", zero_division=0)
-#     rec_macro = recall_score(y_true, y_pred, average="macro", zero_division=0)
-#     f1_macro = f1_score(y_true, y_pred, average="macro", zero_division=0)
-#
-#     print(f"Accuracy:       {acc:.4f}")
-#     print(f"Precision_macro:{prec_macro:.4f}")
-#     print(f"Recall_macro:   {rec_macro:.4f}")
-#     print(f"F1_macro:       {f1_macro:.4f}")
-#     return {
-#         "accuracy": acc,
-#         "precision_macro": prec_macro,
-#         "recall_macro": rec_macro,
-#         "f1_macro": f1_macro,
-#     }
-
-
 def _compute_round_metric(t, alphas, est_preds, classes, n_classes, y_indices):
     """计算某一 boost 轮次对应的集成预测性能（内部函数）。
 
