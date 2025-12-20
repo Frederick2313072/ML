@@ -14,12 +14,9 @@
         "orientations": 9,
         "pixels_per_cell": [2, 2],
         "cells_per_block": [2, 2]
-      },
+      }
 
       
-      "hu_params": {
-        "log_scale": true
-      }
     },
 
     

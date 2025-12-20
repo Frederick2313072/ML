@@ -1,6 +1,6 @@
 {
   "experiment": {
-    "name": "noise2_hog_depth2"  
+    "name": "noise6_hog_depth2"  
   },
 
   "data": {
@@ -16,6 +16,7 @@
         "cells_per_block": [2, 2]
       }
 
+    
     },
 
     
@@ -23,8 +24,11 @@
         "ratio": 0.2  ,
         "label_flip": true,               
         "gaussian": {"std": 0.05},                  
-        "salt_pepper": {"amount": 0.02}           
-                  
+        "salt_pepper": {"amount": 0.02}  ,         
+        "blur": {"kernel_size": 3},
+        "contrast": {"factor_range": [0.7, 1.3]} ,
+        "rotate": {"angle_range": 10},
+        "brightness": {"shift_range": 0.2}      
       },
 
     "test_shift_config": {
