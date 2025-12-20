@@ -1,0 +1,56 @@
+{
+  "experiment": {
+    "name": "noise4_hog_depth2"  
+  },
+
+  "data": {
+    "test_size": 0.2,               
+    "random_state": 42,             
+    "use_feature": "hog",           
+
+    "feature_config":{
+      
+      "hog_params": {
+        "orientations": 9,
+        "pixels_per_cell": [2, 2],
+        "cells_per_block": [2, 2]
+      }
+    },
+
+    
+    "training_noise_config": {
+        "ratio": 0.2  ,
+        "label_flip": true,               
+        "gaussian": {"std": 0.05},                  
+        "salt_pepper": {"amount": 0.02}  ,         
+        "blur": {"kernel_size": 3},
+        "contrast": {"factor_range": [0.7, 1.3]}       
+      },
+
+    "test_shift_config": {
+     
+      "contrast": {
+        "factor_range": [0.7, 1.3]
+      }
+    }
+
+  },
+
+  "monitor": {
+    "use_monitor": true,            
+    "is_data_noisy": true,          
+    "checkpoint_interval": 50      
+  },
+
+  "model": {
+    "estimator": {
+      "max_depth": 2,               
+      "criterion": "entropy",       
+      "max_features": 0.25,         
+      "random_state": 42
+    },
+    "n_estimators": 500,            
+    "learning_rate": 0.5,           
+    "random_state": 42              
+  }
+}
