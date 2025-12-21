@@ -2,7 +2,9 @@
 *.egg-info/
 dist/
 experiments/*
+batch_exp/*
 !experiments/.gitkeep
+!batch_exp/.gitkeep
 
 *.joblib
 *.joblib.xz
