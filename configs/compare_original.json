@@ -1,0 +1,39 @@
+{
+  "experiment": {
+    "name": "compare_original"
+  },
+
+  "data": {
+    "test_size": 0.2,
+    "random_state": 42,
+    "use_feature": "original",
+
+    "feature_config": {},
+
+    "training_noise_config": {
+      "ratio": 0.0
+    },
+
+    "test_shift_config": {}
+  },
+
+  "monitor": {
+    "use_monitor": true,
+    "is_data_noisy": false,
+    "checkpoint_interval": 50,
+    "val_freq": 50
+  },
+
+  "model": {
+    "estimator": {
+      "max_depth": 3,
+      "criterion": "entropy",
+      "max_features": 0.3,
+      "random_state": 42
+    },
+    "n_estimators": 500,
+    "learning_rate": 0.8,
+    "random_state": 42
+  }
+}
+
