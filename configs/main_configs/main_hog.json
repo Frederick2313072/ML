@@ -33,7 +33,7 @@
 
   "model": {
     "estimator": {
-      "max_depth": 2,               
+      "max_depth": 1,
       "criterion": "entropy",       
       "max_features": 0.25,         
       "random_state": 42
