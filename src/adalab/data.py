@@ -53,6 +53,7 @@ class DataSplitForTraining:
     noise_idx: NDArray
     clean_idx: NDArray
     X_test_784: NDArray
+    X_test_noisy: NDArray
 
 
 @dataclass
@@ -200,6 +201,94 @@ class FeatureExtractor:
             raise ValueError("[Data] Invalid feature type")
         return X_feat
 
+    # def inject_noise(self):
+    #     """向训练集注入噪声。
+    #
+    #     根据 ``noise_config`` 中的配置，
+    #     对训练集样本施加标签噪声或像素级扰动。
+    #
+    #     噪声仅作用于训练集，测试集始终保持干净标签。
+    #     """
+    #     print("[Data] Applying perturbations...")
+    #
+    #     X = self.X_train_raw.copy()
+    #     y = self.y_train_raw.copy()
+    #     pert = self.perturber
+    #
+    #     noise_items = [(k, v) for k, v in self.noise_config.items() if k != "ratio"]
+    #     ratio = float(self.noise_config.get("ratio", 0.0))
+    #     # 若无 noise_config，直接返回
+    #     if len(self.noise_config) == 0 or ratio == 0 or len(noise_items) == 0:
+    #         print("[Data] No perturbations applied.")
+    #         self.X_train = X
+    #         self.y_train = y
+    #         self.noise_indices = np.array([], dtype=int)
+    #         return
+    #     n_samples = len(X)
+    #     n_noisy = int(n_samples * ratio)
+    #     noise_indices = pert.rng.choice(n_samples, n_noisy, replace=False)
+    #     print(f"[Data] Random selection: {n_noisy} indices selected")
+    #
+    #     self.noise_indices = np.array(noise_indices)
+    #     subset = X[self.noise_indices]  # 只处理噪声样本
+    #
+    #     # 将所有像素噪声叠加到相同 noise_indices 样本上
+    #     for noise_type, params in noise_items:
+    #         if noise_type == "label_flip":
+    #             if params is True:
+    #                 y = pert.flip_labels(y, noise_indices=self.noise_indices)
+    #                 print(f"[Data] Label flip: {len(noise_indices)} indices selected")
+    #
+    #         elif noise_type == "gaussian":
+    #             std = params.get("std", 0.1)
+    #             subset = pert.add_gaussian_noise(subset, noise_std=std)
+    #             print(f"[Data] Gaussian noise std={std}")
+    #
+    #         elif noise_type == "salt_pepper":
+    #             amount = params.get("amount", 0.05)
+    #             subset = pert.add_salt_pepper_noise(subset, amount=amount)
+    #             print(f"[Data] Salt-Pepper amount={amount}")
+    #
+    #         elif noise_type == "contrast":
+    #             fr = params.get("factor_range", (0.5, 1.5))
+    #             subset = pert.adjust_contrast(subset, factor_range=fr)
+    #             print(f"[Data] Contrast factor_range={fr}")
+    #
+    #         elif noise_type == "brightness":
+    #             sr = params.get("shift_range", 0.3)
+    #             subset = pert.add_brightness_shift(subset, shift_range=sr)
+    #             print(f"[Data] Brightness shift_range={sr}")
+    #
+    #         elif noise_type == "rotate":
+    #             ar = params.get("angle_range", 15)
+    #             subset = pert.rotate_slight(subset, angle_range=ar)
+    #             print(f"[Data] Rotate angle_range={ar}")
+    #
+    #         elif noise_type == "blur":
+    #             ks = params.get("kernel_size", 3)
+    #             subset = pert.add_blur(subset, kernel_size=ks)
+    #             print(f"[Data] Blur kernel_size={ks}")
+    #
+    #         else:
+    #             raise ValueError(f"Unsupported noise type: {noise_type}")
+    #
+    #         # 写回噪声样本
+    #         X[self.noise_indices] = subset
+    #
+    #     self.X_train = X
+    #     self.y_train = y
+    #     print(f"[Data] Total noisy samples: {len(self.noise_indices)}")
+    #
+    #     # 训练集内部噪声索引
+    #     self.train_noise_indices = self.noise_indices
+    #     self.train_clean_indices = np.array(
+    #         list(set(range(len(self.y_train))) - set(self.train_noise_indices))
+    #     )
+    #
+    #     print(
+    #         f"[Data] Noisy Train: {len(self.train_noise_indices)} noise, {len(self.train_clean_indices)} clean"
+    #     )
+
 
 class DataPreparationForTraining:
     """MNIST 数据准备与噪声注入调度器。
@@ -300,107 +389,147 @@ class DataPreparationForTraining:
         self.y_test = np.asarray(y_test, dtype=np.int64)
         print(f"[Data] Split done: Train={len(X_train)}, Test={len(X_test)}")
 
-    def inject_noise(self):
-        """向训练集注入噪声。
+    def _apply_noise(
+        self, X: np.ndarray, y: np.ndarray, noise_indices, noise_items: list
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """私有方法，用于向数据集中注入噪声。
 
-        根据 ``noise_config`` 中的配置，
-        对训练集样本施加标签噪声或像素级扰动。
+        该方法应用于训练集和测试集特征，根据噪声配置修改数据。
 
-        噪声仅作用于训练集，测试集始终保持干净标签。
+        Args:
+            X (np.ndarray): 输入数据（训练集或测试集的特征矩阵）。
+            y (np.ndarray): 输入数据的标签。
+            noise_items (list): 噪声类型及其相关参数的列表。
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: 噪声注入后的特征和标签。
         """
-        print("[Data] Applying perturbations...")
-
-        X = self.X_train_raw.copy()
-        y = self.y_train_raw.copy()
         pert = self.perturber
+        X_noisy = X.copy()
+        y_noisy = y.copy()
 
-        noise_items = [(k, v) for k, v in self.noise_config.items() if k != "ratio"]
-        ratio = float(self.noise_config.get("ratio", 0.0))
-        # 若无 noise_config，直接返回
-        if len(self.noise_config) == 0 or ratio == 0 or len(noise_items) == 0:
-            print("[Data] No perturbations applied.")
-            self.X_train = X
-            self.y_train = y
-            self.noise_indices = np.array([], dtype=int)
-            return
-        n_samples = len(X)
-        n_noisy = int(n_samples * ratio)
-        noise_indices = pert.rng.choice(n_samples, n_noisy, replace=False)
-        print(f"[Data] Random selection: {n_noisy} indices selected")
-
-        self.noise_indices = np.array(noise_indices)
-        subset = X[self.noise_indices]  # 只处理噪声样本
-
-        # 将所有像素噪声叠加到相同 noise_indices 样本上
         for noise_type, params in noise_items:
             if noise_type == "label_flip":
                 if params is True:
-                    y = pert.flip_labels(y, noise_indices=self.noise_indices)
+                    # 随机反转标签
+                    y_noisy = pert.flip_labels(y_noisy, noise_indices=noise_indices)
                     print(f"[Data] Label flip: {len(noise_indices)} indices selected")
 
             elif noise_type == "gaussian":
                 std = params.get("std", 0.1)
-                subset = pert.add_gaussian_noise(subset, noise_std=std)
+                X_noisy = pert.add_gaussian_noise(X_noisy, noise_std=std)
                 print(f"[Data] Gaussian noise std={std}")
 
             elif noise_type == "salt_pepper":
                 amount = params.get("amount", 0.05)
-                subset = pert.add_salt_pepper_noise(subset, amount=amount)
+                X_noisy = pert.add_salt_pepper_noise(X_noisy, amount=amount)
                 print(f"[Data] Salt-Pepper amount={amount}")
 
             elif noise_type == "contrast":
                 fr = params.get("factor_range", (0.5, 1.5))
-                subset = pert.adjust_contrast(subset, factor_range=fr)
+                X_noisy = pert.adjust_contrast(X_noisy, factor_range=fr)
                 print(f"[Data] Contrast factor_range={fr}")
 
             elif noise_type == "brightness":
                 sr = params.get("shift_range", 0.3)
-                subset = pert.add_brightness_shift(subset, shift_range=sr)
+                X_noisy = pert.add_brightness_shift(X_noisy, shift_range=sr)
                 print(f"[Data] Brightness shift_range={sr}")
 
             elif noise_type == "rotate":
                 ar = params.get("angle_range", 15)
-                subset = pert.rotate_slight(subset, angle_range=ar)
+                X_noisy = pert.rotate_slight(X_noisy, angle_range=ar)
                 print(f"[Data] Rotate angle_range={ar}")
 
             elif noise_type == "blur":
                 ks = params.get("kernel_size", 3)
-                subset = pert.add_blur(subset, kernel_size=ks)
+                X_noisy = pert.add_blur(X_noisy, kernel_size=ks)
                 print(f"[Data] Blur kernel_size={ks}")
 
             else:
                 raise ValueError(f"Unsupported noise type: {noise_type}")
 
-            # 写回噪声样本
-            X[self.noise_indices] = subset
+        return X_noisy, y_noisy
 
-        self.X_train = X
-        self.y_train = y
+    def inject_noise(self):
+        """向训练集和测试集注入噪声。
+
+        根据 ``noise_config`` 中的配置，
+        对训练集和测试集样本施加标签噪声或像素级扰动。
+
+        噪声仅作用于训练集和测试集特征，测试集标签始终保持干净。
+        """
+        print("[Data] Applying perturbations...")
+
+        # 训练集数据
+        X_train = self.X_train_raw.copy()
+        y_train = self.y_train_raw.copy()
+
+        # 测试集数据（保持标签不变）
+        X_test = self.X_test_raw.copy()
+        y_test = self.y_test.copy()
+
+        # 获取噪声配置项
+        noise_items = [(k, v) for k, v in self.noise_config.items() if k != "ratio"]
+        ratio = float(self.noise_config.get("ratio", 0.0))
+
+        # 若无 noise_config，直接返回
+        if len(self.noise_config) == 0 or ratio == 0 or len(noise_items) == 0:
+            print("[Data] No perturbations applied.")
+            self.X_train = X_train
+            self.y_train = y_train
+            self.X_test = X_test
+            self.noise_indices = np.array([], dtype=int)
+            self.X_test_noisy = X_test  # 无噪声测试数据
+            return
+
+        n_samples_train = len(X_train)
+        n_noisy_train = int(n_samples_train * ratio)
+        noise_indices_train = self.perturber.rng.choice(
+            n_samples_train, n_noisy_train, replace=False
+        )
+        print(f"[Data] Random selection for train: {n_noisy_train} indices selected")
+
+        self.noise_indices = np.array(noise_indices_train)
+        subset_train = X_train[self.noise_indices]  # 只处理噪声样本
+
+        # 给训练集添加噪声
+        X_train[self.noise_indices], y_train = self._apply_noise(
+            subset_train, y_train, self.noise_indices, noise_items
+        )
+        self.X_train = X_train
+        self.y_train = y_train
+
+        # 给测试集添加噪声（仅修改特征，不修改标签）
+        n_samples_test = len(X_test)
+        n_noisy_test = int(n_samples_test * ratio)
+        noise_indices_test = self.perturber.rng.choice(
+            n_samples_test, n_noisy_test, replace=False
+        )
+        print(f"[Data] Random selection for test: {n_noisy_test} indices selected")
+
+        # 给测试集注入噪声
+        X_test_noisy, y_test = self._apply_noise(
+            X_test, y_test, np.array(noise_indices_test), noise_items
+        )
+        self.X_test_noisy = X_test_noisy
+        self.y_test = y_test  # 测试集标签不变
+
+        # 返回三份数据：训练集（有噪声）、测试集（无噪声）、测试集（有噪声）
         print(f"[Data] Total noisy samples: {len(self.noise_indices)}")
-
-        # 训练集内部噪声索引
         self.train_noise_indices = self.noise_indices
         self.train_clean_indices = np.array(
             list(set(range(len(self.y_train))) - set(self.train_noise_indices))
         )
-
         print(
             f"[Data] Noisy Train: {len(self.train_noise_indices)} noise, {len(self.train_clean_indices)} clean"
         )
 
-    # 训练阶段总调度函数
+        # 返回三份数据
+        return self.X_train, self.X_test, self.X_test_noisy
 
     def prepare(
         self,
-    ) -> Tuple[
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-        np.ndarray,
-    ]:
+    ) -> DataSplitForTraining:
         """执行训练阶段完整的数据准备流程。
 
         该方法是训练前数据准备阶段的统一入口，
@@ -421,14 +550,17 @@ class DataPreparationForTraining:
         feat_extractor = FeatureExtractor(self.use_feature, self.feature_config)
         self.X_train = feat_extractor.apply_feature(self.X_train)
         self.X_test = feat_extractor.apply_feature(self.X_test)
-        return (
-            self.X_train,
-            self.X_test,
-            self.y_train,
-            self.y_test,
-            self.train_noise_indices,
-            self.train_clean_indices,
-            self.X_test_raw,
+        self.X_test_noisy = feat_extractor.apply_feature(self.X_test_noisy)
+
+        return DataSplitForTraining(
+            X_train=self.X_train,
+            X_test=self.X_test,
+            y_train=self.y_train,
+            y_test=self.y_test,
+            noise_idx=self.train_noise_indices,
+            clean_idx=self.train_clean_indices,
+            X_test_784=self.X_test_raw,
+            X_test_noisy=self.X_test_noisy,
         )
 
 
@@ -461,6 +593,8 @@ class DataPreparationForTesting:
             elif shift_type == "rotate":
                 ar = params.get("angle_range", 15)
                 X_shift = self.pert.rotate_slight(X_shift, angle_range=ar)
+            else:
+                raise ValueError(f"Not supported shift type {shift_type}")
         return X_shift
 
     def get_shift_x_test(self) -> Dict[str, NDArray]:

@@ -241,10 +241,11 @@ def prep_training_data_from_config(config) -> DataSplitForTraining:
         random_state=data_cfg["random_state"],
         feature_config=feature_config,
     )
-    X_train, X_test, y_train, y_test, noise_idx, clean_idx, X_test_784 = prep.prepare()
-    return DataSplitForTraining(
-        X_train, X_test, y_train, y_test, noise_idx, clean_idx, X_test_784
-    )
+    # X_train, X_test, y_train, y_test, noise_idx, clean_idx, X_test_784 = prep.prepare()
+    # return DataSplitForTraining(
+    #     X_train, X_test, y_train, y_test, noise_idx, clean_idx, X_test_784
+    # )
+    return prep.prepare()
 
 
 def prep_testing_data_from_config(config, train_split, folder) -> DataSplitForTesting:
@@ -304,7 +305,7 @@ def build_experiment(config_path, base_exp_dir: str = "experiments"):
     with open(layout.config_path, "w") as fw:
         json.dump(config, fw, indent=4)
 
-    split = prep_training_data_from_config(config)
+    train_split = prep_training_data_from_config(config)
 
     # === 构造 Monitor 和 模型===
     monitor_cfg = config["monitor"]
@@ -324,14 +325,14 @@ def build_experiment(config_path, base_exp_dir: str = "experiments"):
         return (
             clf,
             None,
-            split,
+            train_split,
             layout,
         )
 
     print("[MODEL] Using AdaBoost with BoostMonitor enabled")
     monitor = BoostMonitor(
-        noise_indices=split.noise_idx,
-        clean_indices=split.clean_idx,
+        noise_indices=train_split.noise_idx,
+        clean_indices=train_split.clean_idx,
         is_data_noisy=monitor_cfg["is_data_noisy"],
         checkpoint_interval=monitor_cfg["checkpoint_interval"],
         checkpoint_prefix=str(layout.ckpt_dir),
@@ -342,15 +343,15 @@ def build_experiment(config_path, base_exp_dir: str = "experiments"):
 
     clf = AdaBoostClfWithMonitor(
         _monitor=monitor,
-        X_val=split.X_test,
-        y_val=split.y_test,
+        X_val=train_split.X_test,
+        y_val=train_split.y_test,
         estimator=base,
         n_estimators=model_cfg["n_estimators"],
         learning_rate=model_cfg["learning_rate"],
         random_state=model_cfg["random_state"],
     )
 
-    return (clf, monitor, split, layout)
+    return (clf, monitor, train_split, layout)
 
 
 def train_and_save(

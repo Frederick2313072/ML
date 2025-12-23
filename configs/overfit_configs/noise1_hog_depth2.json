@@ -26,14 +26,10 @@
       },
 
     "test_shift_config": {
-      "as_training": {
-          "ratio": 0.2  ,
-          "label_flip": true,               
-          "gaussian": {"std": 0.05}                        
-        },
-
-      "contrast": {
-        "factor_range": [0.7, 1.3]
+      "contrast":{
+        "contrast": {
+          "factor_range": [0.7, 1.3]
+        }
       }
     }
 

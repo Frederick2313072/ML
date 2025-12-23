@@ -17,20 +17,8 @@ from adalab.workflow import (
 )
 
 
-EXP_DIR = Path("../batch_exp/overfit/noise1_hog_depth2")
+EXP_DIR = Path("../batch_exp/overfit_hog/noise1_hog_depth2")
 use_feature = "hog"
-
-
-feature_config = {
-    "hog_params": {
-        "orientations": 9,
-        "pixels_per_cell": [2, 2],
-        "cells_per_block": [2, 2],
-    }
-}
-test_shift_config = {
-    "as_train": {"ratio": 0.2, "label_flip": True, "gaussian": {"std": 0.05}}
-}
 
 
 def prep_for_val(
@@ -51,15 +39,15 @@ def prep_for_val(
     result_dir = exp_dir / "results"
     clf_path = result_dir / "model.joblib.xz"
     monitor_path = result_dir / "monitor.joblib.xz"
-    clf = load_compressed(clf_path)
-    monitor: BoostMonitor = load_compressed(monitor_path)
+    clf = load_compressed(str(clf_path))
+    monitor: BoostMonitor = load_compressed(str(monitor_path))
 
     train_split = prep_training_data_from_config(config)
-    test_split = prep_testing_data_from_config(config, train_split, course_folder)
+    # test_split = prep_testing_data_from_config(config, train_split, course_folder)
     # breakpoint()
 
     alphas = np.asarray(monitor.alpha_history)
-    return clf, alphas, train_split, test_split
+    return clf, alphas, train_split, monitor
 
 
 def plot_curves(
@@ -114,21 +102,33 @@ def plot_curves(
 
 def main():
     config_path = "../configs/overfit_configs/noise1_hog_depth2.json"
-    clf, alphas, train_split, test_split = prep_for_val(
+    clf, alphas, train_split, monitor = prep_for_val(
         config_path, course_folder="../data/test_images"
     )
-    acc_curv_train, f1_curv_train, val_idx = val_after_train_parallel(
-        clf, alphas, X=train_split.X_train, y=train_split.y_train, val_freq=10, n_jobs=4
+    # print("validating on training data")
+    # acc_curv_train, f1_curv_train, val_idx = val_after_train_parallel(
+    #     clf, alphas, X=train_split.X_train, y=train_split.y_train, val_freq=10, n_jobs=4
+    # )
+    # print("validating on clean val data")
+    # acc_curv_val, f1_curv_val, val_idx = val_after_train_parallel(
+    #     clf, alphas, X=train_split.X_test, y=train_split.y_test, val_freq=10, n_jobs=4
+    # )
+    # assert np.array_equal(acc_curv_train, np.array(monitor.acc_on_train_data))
+    # assert np.array_equal(acc_curv_test, np.array(monitor.val_acc_history))
+    acc_curv_train, f1_curv_train = (
+        np.array(monitor.acc_on_train_data),
+        np.array(monitor.f1_on_training_data),
     )
-    acc_curv_val, f1_curv_val, val_idx = val_after_train_parallel(
-        clf, alphas, X=train_split.X_test, y=train_split.y_test, val_freq=10, n_jobs=4
+    acc_curv_val, f1_curv_val = (
+        np.array(monitor.val_acc_history),
+        np.array(monitor.val_f1_history),
     )
-
+    print("validating on noisy val data")
     acc_curv_val_noise, f1_curv_val_noise, val_idx = val_after_train_parallel(
         clf,
         alphas,
-        X=test_split.X_mnist_shift["as_training"],
-        y=test_split.y_mnist,
+        X=train_split.X_test_noisy,
+        y=train_split.y_test,
         val_freq=10,
         n_jobs=4,
     )
@@ -140,7 +140,7 @@ def main():
         val_noise_curve=acc_curv_val_noise,
         ylabel="Accuracy",
         title="Accuracy vs Boosting Rounds",
-        save_path="acc_curve.png",
+        save_path="acc_val_noise.png",
     )
 
     # ===== F1 曲线 =====
@@ -151,7 +151,7 @@ def main():
         val_noise_curve=f1_curv_val_noise,
         ylabel="F1 Score",
         title="F1 Score vs Boosting Rounds",
-        save_path="f1_curve.png",
+        save_path="f1_val_noise.png",
     )
 
 

@@ -115,7 +115,7 @@ def load_from_joblib(monitor: Union[str, BoostMonitor]):
         raise ValueError(
             "monitor must be a BoostMonitor instance or a joblib file path"
         )
-
+    assert type(monitor) is BoostMonitor
     # 从 BoostMonitor 对象提取数据
     data = {
         "rounds": list(range(1, len(monitor.error_history) + 1)),
