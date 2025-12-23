@@ -39,14 +39,20 @@
     "test_shift_config": {
       //此处可以防止任意数量的键值对
       //每个键值对表示一种测试集的风格构造策略，key可以根据合适的语义任意取名
-      "contrast": {
-        "factor_range": [0.7, 1.3]
+      "contrast_only": {
+        "contrast": {
+          "factor_range": [0.7, 1.3]
+        }
       },
-      "rotate": {
-        "angle_range": 10
+      "rotate_only":{
+        "rotate": {
+          "angle_range": 10
+        }
       },
-      "brightness": {
-        "shift_range": 0.2
+      "brightness_only":{
+        "brightness": {
+          "shift_range": 0.2
+        }
       },
       "multiple_disturbances_test": {
         "contrast": {
