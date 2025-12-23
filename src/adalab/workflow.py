@@ -21,12 +21,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from pandas.core import base
-from skimage import feature
+
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
-
-from adalab.core import experiment
 
 from .monitor import BoostMonitor
 from .data import (
