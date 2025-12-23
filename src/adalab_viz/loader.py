@@ -3,6 +3,7 @@ import pandas as pd
 import joblib
 from typing import Union
 
+from adalab.io import load_compressed
 from adalab.monitor import BoostMonitor
 
 # 兼容旧 joblib 路径
@@ -102,7 +103,11 @@ def load_from_joblib(monitor: Union[str, BoostMonitor]):
     if isinstance(monitor, str):
         # 如果 monitor 是路径，加载 joblib 文件
         print(f"[Viz] Loading monitor from joblib file: {monitor}")
-        monitor: BoostMonitor = joblib.load(monitor)
+        monitor_xz_path = monitor + ".xz"
+        if os.path.exists(monitor):
+            monitor: BoostMonitor = joblib.load(monitor)
+        elif os.path.exists(monitor_xz_path):
+            monitor: BoostMonitor = load_compressed(monitor_xz_path)
     elif isinstance(monitor, BoostMonitor):
         # 如果 monitor 是 BoostMonitor 实例，直接使用
         print("[Viz] Using provided BoostMonitor instance.")

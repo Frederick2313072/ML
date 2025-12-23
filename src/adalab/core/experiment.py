@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Union, Tuple
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.model_selection import train_test_split
 
+from adalab.io import load_compressed
 from adalab.monitor import BoostMonitor
 from adalab.patch import AdaBoostClfWithMonitor
 from adalab.workflow import (
@@ -72,7 +73,7 @@ class ExperimentPipeline:
         print("\033[36m[Pipeline] Starting training...\n\033[0m")
 
         clf, monitor, train_split, layout, artifacts = train_and_save(
-            str(config_path), self.experiments_dir
+            str(config_path), str(self.experiments_dir)
         )
         test_split = prep_testing_data_from_config(config, train_split, course_folder)
         # evaluate
@@ -130,8 +131,17 @@ class ExperimentPipeline:
         config = load_config(config_path)
         result_dir = exp_dir / "results"
         clf_path = result_dir / "model.joblib"
+        clf_xz_path = result_dir / "model.joblib.xz"
+
         data = self._load_viz_data(result_dir)
-        clf = joblib.load(clf_path)
+        if clf_path.exists():
+            clf = joblib.load(clf_path)
+        elif clf_xz_path.exists():
+            clf = load_compressed(str(clf_xz_path))
+        else:
+            raise FileNotFoundError(
+                f"No classifier model file <model.joblib> or <model.joblib.xz>  found under {result_dir}"
+            )
         train_split = prep_training_data_from_config(config)
         test_split = prep_testing_data_from_config(config, train_split, course_folder)
 
@@ -211,12 +221,12 @@ class ExperimentPipeline:
             ) from e
 
         monitor_path = result_dir / "monitor.joblib"
-        # csv_path = result_dir / "final_results.csv"
+        monitor_xz_path = result_dir / "monitor.joblib.xz"
 
-        if monitor_path.exists():
+        if monitor_path.exists() or monitor_xz_path.exists():
             return load_from_joblib(str(monitor_path))
 
-        raise FileNotFoundError(f"No monitor.joblib : {result_dir}")
+        raise FileNotFoundError(f"No monitor.joblib or monitor.joblib.xz: {result_dir}")
 
     def _visualize_data(self, data: Any, viz_dir: Path, experiment_name: str) -> None:
         from adalab_viz.plotter import visualize_training_data
