@@ -1,19 +1,19 @@
 {
   "experiment": {
-    "name": "compare_hog"
+    "name": "test_feature_robustness"
   },
 
   "data": {
     "test_size": 0.2,
     "random_state": 42,
     "use_feature": "hog",
-    
+
     "feature_config": {
-    "hog_params": {
-      "orientations": 9,
-      "pixels_per_cell": [4, 4],
-      "cells_per_block": [2, 2]
-    }
+      "hog_params": {
+        "orientations": 9,
+        "pixels_per_cell": [4, 4],
+        "cells_per_block": [2, 2]
+      }
     },
 
     "training_noise_config": {
@@ -21,30 +21,24 @@
     },
 
     "test_shift_config": {
-      "contrast_only": {
+      "contrast": {
+        "factor_range": [0.7, 1.3]
+      },
+      "brightness": {
+        "shift_range": 0.2
+      },
+      "rotate": {
+        "angle_range": 10
+      },
+      "combined": {
         "contrast": {
-          "factor_range": [0.7, 1.3]
-        }
-      },
-      "rotate_only": {
-        "rotate": {
-          "angle_range": 10
-        }
-      },
-      "brightness_only": {
-        "brightness": {
-          "shift_range": 0.2
-        }
-      },
-      "multiple_disturbances": {
-        "contrast": {
-          "factor_range": [0.5, 1.5]
-        },
-        "rotate": {
-          "angle_range": 15
+          "factor_range": [0.6, 1.4]
         },
         "brightness": {
           "shift_range": 0.3
+        },
+        "rotate": {
+          "angle_range": 15
         }
       }
     }

@@ -14,7 +14,34 @@
       "ratio": 0.0
     },
 
-    "test_shift_config": {}
+    "test_shift_config": {
+      "contrast_only": {
+        "contrast": {
+          "factor_range": [0.7, 1.3]
+        }
+      },
+      "rotate_only": {
+        "rotate": {
+          "angle_range": 10
+        }
+      },
+      "brightness_only": {
+        "brightness": {
+          "shift_range": 0.2
+        }
+      },
+      "multiple_disturbances": {
+        "contrast": {
+          "factor_range": [0.5, 1.5]
+        },
+        "rotate": {
+          "angle_range": 15
+        },
+        "brightness": {
+          "shift_range": 0.3
+        }
+      }
+    }
   },
 
   "monitor": {
